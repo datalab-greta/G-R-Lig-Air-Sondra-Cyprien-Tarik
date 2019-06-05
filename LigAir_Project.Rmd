@@ -1,0 +1,529 @@
+---
+title: "Rapport de Projet Qualité de l'Air"
+author: "Sondra, Cyprien & Tarik"
+date: "01/06/2019"
+output:
+  html_document: default
+  pdf_document: 
+    fig_caption: yes
+---
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# **Objectifs du Projet:**
+![](/home/tarik/Documents/Utilisation API journée5/Images/LCL.png)
+
+* Un client mystérieux nous demande un rapport sur la pollution de l’air en région Centre. 
+Il semblerait que ce client mystérieux souhaite ouvrir un établissement pour une population particulièrement sensible à la pollution de l’air telle que des enfants ayant des fragilités respiratoires (asthme, bronchites, allergies). 
+
+* Avec nos compétences nouvellement acquises, nous avons pour mission de représenter des données du site Lig’air de **façon significative** à l’adresse d’un **client qui n’a que très peu de notions dans le domaine**. Nous devrons donc **expliciter les noms des polluants et leur effet d’un point de vue sanitaire**. 
+
+* Nous devons exposer que la plupart des polluants dont nous montrons les données sont susceptibles d'atteindre des niveaux de concentration dans l'air critiques pour la santé et l'environnement dans **un contexte urbain avec traffic et activité industrielle importante**. Et qu'en conséquence, les stations de mesure se situent **majoritairement dans le périmètre d'agglomérations** de taille importante.
+
+**Nous avons restreint les données à représenter :**
+
+* Nous nous concentrons sur **les relevés mensuels des principaux polluants** susceptibles d’avoir un impact négatif sur les populations fragiles ou ayant des problèmes respiratoires : le dioxyde d’azote (NO2), Les particules ou poussières en suspension d’un diamètre inférieur ou égal à 10 microns ou d’un diamètre inférieur ou égal à 2,5 microns (PM10 et PM2,5) et enfin l’ozone (O3) :
+
+ + Le dioxyde d'azote(NO2) est **un gaz irritant pour les bronches**. Il provoque **l'augmentation de la fréquence des crises et leur gravité** chez les populations asthmatiques. De plus, **il favorise les infections pulmonaires infantiles**.
+
+  + Les particules en suspensions sont connus pour **irriter les bronches et altérer la fonction respiratoire des populations sensibles**. Elles sont un facteur associé important dans **l'augmentation de la mortalité pour causes respiratoires ou cardio-vasculaires**. De plus les particules fines d'un diamètre inférieur ou égal à 2,5 microns **ne sont pas retenues par les voies aériennes et le nez**. Au contraire, elles peuvent **pénétrer profondément dans l'appareil respiratoire jusqu'aux alvéoles pulmonaires**.
+
+  + L'ozone est **un gaz irritant pour l'appareil respiratoire et les yeux**. L'ozone est un facteur associé dans l'**augmentation de la mortalité** pendant les épisodes de pollution.
+
+* Les mesures de ces polluants rentrent dans le calcul des **indices de qualité de l'air** suivant :
+
+  + Atmo (Norme Francaise)
+  + Prev'Air (Norme Européennes)
+  
+
+
+* Par ailleurs, nous nous concentrons sur **une moyenne des relevés mensuels pris sur une période de 13 mois** à rebours du mois le plus récent. Aujourd’hui, cette période se situe entre Mai 2018 et Juin 2019. Mais notre jeu de données est automatiquement mis à jour en se connectant à l’API du site ‘Lig’Air’.
+
+* Nous représenterons les moyennes obtenues en situant visuellement les stations de mesure sur **une carte interactive de la région Centre** qui permettra d’**afficher dans des boutons** des valeurs concernant les quatre polluants. L'utilisateur pourra en cliquant sur le nom d'un polluant afficher ou cacher les informations afférentes sur la carte. De plus l'information affichée est associée à **des couleurs qui facilitent l'identification des données**.
+
+* A l’aide de **diagrammes à bandes**, nous comparerons les moyennes des différentes stations d’un seul polluant à la fois avec en référence les valeurs limites réglementaires.
+Nous mentionnerons aussi en référence les seuils d’alerte réglementaires qui concernent les particules fines (PM10), l’ozone (O3) et le dioxyde d’azote (NO2).
+
+Après exploration des données, Il faudra expliquer à notre client que dans le cadre de la période de mesure, la qualité de l'air dans la région Centre est plutôt très bon. Il s'agit donc de rentrer dans une comparaison des niveaux de pollution plus fine.
+
+Ainsi nous espérons pouvoir éclairer notre client mystérieux sur la question de la qualité de l'air en région Centre.
+
+#  **I. Importations des données depuis l'API de Lig'Air, en installant nos bibliothèques:**
+---
+```{r}
+  #install.packages("httr") # à besoin de sudo apt-get install libssl-dev
+  library(httr)
+  #install.packages("jsonlite")
+  library(jsonlite)
+  #install.packages("dplyr")
+  library(dplyr)
+```
+Ici les commandes d'installation des bibliothèques sont mises en commentaire **afin de ne pas les réinstaller** et ainsi causer d'éventuels problèmes de dépendances.
+
+
+# **I.1 Communication avec l'API:**
+
+Pour l'importation des données, nous allons tout d'abord entrer en contact avec l'API de Lig'Air avec la **fonction GET ()** de la **bibliothèque httr** :
+
+```{r toc toc toc API}
+MensuelGeoJson <-"https://services1.arcgis.com/HzzPcgRsxxyIZdlU/arcgis/rest/services/mes_centre_val_de_loire_mensuel_poll_princ_1/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=json"
+ MensuelGeoJson 
+  MensuelGET<-httr::GET(MensuelGeoJson) 
+ MensuelGET
+```
+La requète Html a bien abouti car nous pouvons constater que *la valeur 200* du status nous est retournée.
+```{r Fichier from Json}
+ 
+Mensuelcontent <- httr::content(MensuelGET)
+  MensuelFROM <- jsonlite::fromJSON(Mensuelcontent, flatten = TRUE)
+  Mensuelfeatures<-MensuelFROM$features
+  knitr::kable(head(Mensuelfeatures))
+```
+
+Il s'agit maintenant d'extraire les données qui nous intéressent grâce à **la fonction content() de httr** puis de les *désimbriquer* grâce à **la fonction fromJSON de jsonlite en utilisant l'option "flatten".**
+Nous pouvons enfin obtenir **un tableau** de la section "features" dans une variable appelée "Mensuelfeatures".
+
+
+# **II. Triage des données:**
+
+Pour exploiter au mieux les données qui sont maintenant lisibles, nous allons les **filtrer**.
+Plusieur fonctions sont à notre dispositions, nous allons utiliser conjointement **group_by()**, **summarise()**, et **filter()** de la bibliothèque **dplyr**:
+
+
+```{r triage}
+  
+  ListeStations<-Mensuelfeatures %>%
+    group_by(attributes.nom_com,attributes.nom_polluant,attributes.code_station,attributes.x_wgs84,attributes.y_wgs84,attributes.influence,attributes.statut_valid) %>%
+    summarise(moyenne= mean(attributes.valeur))
+  ListeStations<-dplyr::filter(ListeStations, attributes.statut_valid == 1,attributes.influence !="Rurale régionale")
+  
+  ListeMoyennePM10<-dplyr::filter(ListeStations, attributes.nom_polluant =="PM10")
+  
+  ListeMoyennePM2.5<-dplyr::filter(ListeStations, attributes.nom_polluant =="PM2.5")
+  
+  ListeMoyenneO3<-dplyr::filter(ListeStations, attributes.nom_polluant =="O3")
+  
+  ListeMoyenneNO2<-dplyr::filter(ListeStations, attributes.nom_polluant =="NO2")
+ knitr::kable(head(ListeMoyennePM10))
+```
+
+
+Dans l'exemple ci-dessus nous avons après filtrage plusieurs colonnes: nom des communes, les types de polluant, le code des stations de mesure, les coordonnéés gps etc...
+
+Nous allons maintenant **mettre en forme** ces données à l'aide de **graphiques** pour les 4 types de polluants que nous avons choisis de présenter car ils sont, comme nous l'avons dit en introduction, un facteur important de problèmes respiratoires.
+
+
+# **III Création des Diagrammes à bandes:**
+
+Les graphiques sont des diagrammes à bandes faits en utilisant la **fonction ggplot() de la librairie ggplot2**.
+Un tri de données ayant recours aux mêmes fonctions déjà vues plus haut est (filter(), group_by(), summarise()) est effectué.
+
+**Le dioxyde d'azote:**
+
+
+```{r graph_no2}
+library(ggplot2)
+ #LSNO2  All 17 stations are designated Urbaine dark brown 
+  #NO2  Dioxyde d'azote   
+  # Valeurs limites En moyenne annuelle : 40 µg/m³ 
+  # Seuils de recommandation  En moyenne horaire : 200 µg/m³   
+  # Seuils d'alerte  400 µg/m3 dépassé pendant 3 h consécutives - 200 µg/m3 si dépassement de ce seuil la veille, et risque de dépassement de ce seuil le lendemain.
+  
+  LSNO2 <-ListeStations %>% 
+    group_by(attributes.nom_com,attributes.nom_polluant,attributes.code_station, attributes.x_wgs84,attributes.y_wgs84,attributes.statut_valid,attributes.influence) %>%
+    summarise(moyenne= mean(ListeStations$moyenne))
+  LSNO2 <-dplyr::filter(ListeStations, attributes.statut_valid == 1, attributes.nom_polluant == "NO2")
+  
+  Commune2 <- LSNO2$attributes.nom_com
+  Polluant.NO2 <- LSNO2$attributes.nom_polluant
+ 
+  Moyenne2 <- LSNO2$moyenne
+  Influence2 <- LSNO2$attributes.influence
+  
+  lcNO2<-ggplot(data = LSNO2, aes(x=Commune2, y=Moyenne2, fill = Polluant.NO2)) + geom_col  (position = "dodge")+
+    labs(title="Moyenne des relevés mensuels de NO2 (Dioxyde d'azote) μg/m³", y="Valeur μg/m³", x="Commune", 
+         caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
+         subtitle="    Valeurs limites en moyenne annuelle : 40 µg/m³ 
+      Seuils de recommandation en moyenne horaire : 200 µg/m³
+      Seuils d'alerte : 400 µg/m³ dépassé pendant 3 h consécutives")+
+    geom_col(fill = "coral4")+
+    coord_flip()+
+    theme(legend.position = "none")+
+    geom_hline(yintercept = 40, linetype="dotted", color = "red", size=1.5)+
+    theme(title=element_text(size=10, face="bold", colour="coral4"))+
+    theme(plot.subtitle=element_text(size=9, face="plain", color="gray24"))
+  print(lcNO2)
+```
+
+
+**L'Ozone ou trioxygène:**
+```{r graph_O3}
+ #LSO3 The 14 stations include a mix of Urbaine, Périurbaine, Rurale régionale, Rurale nationale very pale blue 
+  # O3   Ozone    
+  #valeurs limites :  N/A  
+  #Objectifs de qualité ; Seuil de protection de la santé En moyenne sur 8 heures :  120 µg/m3
+  #Seuils de recommandation :   En moyenne horaire :  180 µg/m3
+  #Seuils d'alerte  : N/A En moyenne horaire :  240 µg/m3 
+  
+  LSO3 <-ListeStations %>% 
+    group_by(attributes.nom_com,attributes.nom_polluant,attributes.code_station, attributes.x_wgs84,attributes.y_wgs84,attributes.statut_valid,attributes.influence) %>%
+    summarise(moyenne= mean(ListeStations$moyenne))
+  LSO3 <-dplyr::filter(ListeStations, attributes.statut_valid == 1, attributes.nom_polluant == "O3")
+  
+  Commune3 <- LSO3$attributes.nom_com
+  Polluant.O3 <- LSO3$attributes.nom_polluant
+ 
+  Moyenne3 <- LSO3$moyenne
+  Influence3 <- LSO3$attributes.influence
+  
+  lcO3<-ggplot(data = LSO3, aes(x=Commune3, y=Moyenne3, fill = Polluant.O3)) + geom_col  (position = "dodge")+
+    labs(title="Moyenne des relevés mensuels de O3 (Ozone) μg/m³", y="Valeur μg/m³", x="Commune", 
+         caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
+         subtitle="    Objectifs de qualité ; Seuil de protection de la santé En moyenne sur 8 heures :  120 µg/m³ 
+      Seuils de recommandation en moyenne horaire : 180 µg/m³
+      Seuils d'alerte en moyenne horaire :  240 µg/m³")+
+    geom_col(fill = "skyblue2")+
+    coord_flip()+
+    theme(legend.position = "none")+
+    theme(legend.position = "none")+
+    geom_hline(yintercept = 120, linetype="dotted", color = "red", size=1.5)+
+    theme(title=element_text(size=10, face="bold", colour="coral4"))+
+    theme(title=element_text(size=10, face="bold", colour="skyblue3"))+
+    theme(plot.subtitle=element_text(size=9, face="plain", color="gray24"))
+  print(lcO3)
+```
+
+
+**Les Particules Fines PM10:**
+```{r graph_PM10}
+#LSPM10 All 13 observations stations are designated Urbaine
+  #PM10 (Particules fines de diamètre inférieur ou  égal à 10 micromètres)
+  #valeurs limites En moyenne annuelle : 40 µg/m³
+  #Seuils de recommandation En moyenne sur 24h :  50 µg/m3
+  #Seuils d'alerte En moyenne sur 24h : 80 µg/m3
+  
+  LSPM10 <-ListeStations %>% 
+    group_by(attributes.nom_com,attributes.nom_polluant,attributes.code_station, attributes.x_wgs84,attributes.y_wgs84,attributes.statut_valid,attributes.influence) %>%
+    summarise(moyenne= mean(ListeStations$moyenne))
+  LSPM10 <-dplyr::filter(ListeStations, attributes.statut_valid == 1, attributes.nom_polluant == "PM10")
+  
+  Commune10 <- LSPM10$attributes.nom_com
+  Polluant.PM10 <- LSPM10$attributes.nom_polluant
+  
+  Moyenne10 <- LSPM10$moyenne
+  Influence10 <- LSPM10$attributes.influence
+  
+  lcPM10<-ggplot(data = LSPM10, aes(x=Commune10, y=Moyenne10, fill = Polluant.PM10)) + geom_col  (position = "dodge")+
+    labs(title="Moyenne des relevés mensuels de PM10 \n(Particules fines de diamètre ≤ 10 μm) μg/m³", y="Valeur  μg/m³", x="Commune", 
+         caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
+         subtitle="    Valeurs limites en moyenne annuelle : 40 µg/m³ 
+      Seuils de recommandation en moyenne sur 24h : 50 µg/m³
+      Seuils d'alerte en moyenne sur 24h : 80 µg/m³")+
+    geom_col(fill = "yellow4")+
+    coord_flip()+
+    theme(legend.position = "none")+
+    geom_hline(yintercept = 40, linetype="dotted", color = "red", size=1.5)+
+    theme(title=element_text(size=10, face="bold", colour="yellow4"))+
+    theme(plot.subtitle=element_text(size=9, face="plain", color="gray24"))
+  print(lcPM10)
+```
+
+
+**Les Particules Fines PM2.5:**
+```{r graph_PM25}
+  #LSPM25 has 9 observations, 8 Urbaine, Rurale nationale
+  #PM2,5 (Particules fines de diamètre inférieur ou égal à 2,5 micromètres)   
+  #valeurs limites En moyenne annuelle 25 µg/m³  20 µg/m3 en 2020 (à confirmer) 
+  #Seuils de recommandation :  N/A
+  #Seuils d'alerte  : N/A
+  
+  LSPM25 <-ListeStations %>% 
+    group_by(attributes.nom_com,attributes.nom_polluant,attributes.code_station, attributes.x_wgs84,attributes.y_wgs84,attributes.statut_valid,attributes.influence) %>%
+    summarise(moyenne= mean(ListeStations$moyenne))
+  LSPM25 <-dplyr::filter(ListeStations, attributes.statut_valid == 1, attributes.nom_polluant == "PM2.5")
+  
+  Commune25 <- LSPM25$attributes.nom_com
+  Polluant.PM2.5 <- LSPM25$attributes.nom_polluant
+
+  Moyenne25 <- LSPM25$moyenne
+  Influence25 <- LSPM25$attributes.influence
+  
+ lcPM2.5<- ggplot(data = LSPM25, aes(x=Commune25, y=Moyenne25, fill = Polluant.PM2.5)) + geom_col  (position = "dodge")+
+    labs(title="Moyenne des relevés mensuels de PM2.5 \n(Particules fines de diamètre ≤ 2.5 μm) μg/m³", y="Valeur μg/m³", x="Commune", 
+         caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
+         subtitle="    Valeurs limites en moyenne annuelle : 25 µg/m³ (20 µg/m³ en 2020 à confirmer)  
+      Seuils de recommandation en moyenne sur 24h : aucune information
+      Seuils d'alerte en moyenne sur 24h : aucune information")+
+    geom_col(fill = "orange3")+
+    coord_flip()+
+    theme(legend.position = "none")+
+    geom_hline(yintercept = 25, linetype="dotted", color = "red", size=1.5)+
+    theme(title=element_text(size=10, face="bold", colour="orange3"))+
+    theme(plot.subtitle=element_text(size=9, face="plain", color="gray24"))
+ print(lcPM2.5)
+```
+
+
+# **IV. Création de la Carte:**
+
+Maintenant nous allons créer une **carte interactive** : l'utilisateur pourra faire apparaître les données des quatres polluants simultanément ou de façon sélective avec quelques clics de souris. 
+Dans cette partie, nous allons avoir recours à **la fonction leaflet() de la bibliothèque leaflet**.
+
+# **IV.1 Domaine & Couleurs:**
+
+
+# **IV.1.1 Les Domaines:**
+
+Tout d'abord, nous définissons des **domaines** (plages de données) qui **encadrent** nos valeurs moyennes, et ce pour chaque polluant :
+```{r domaine}
+  library(leaflet)
+  library(rgdal)
+  library(sf)
+  
+  
+  # get domain of numeric data
+  domainPM10 <- range(ListeMoyennePM10$moyenne)
+  domainPM2.5 <- range(ListeMoyennePM2.5$moyenne)
+  domainO3 <- range(ListeMoyenneO3$moyenne)
+  domainNO2 <- range(ListeMoyenneNO2$moyenne)
+  print(domainPM10)
+  print(domainPM2.5)
+  print(domainNO2)
+  print(domainO3)
+```
+
+On observe que **la fonction range()** definit un *vecteur* compris entre la valeur *min* et la valeur *max* de la colonne "moyenne" et ce pour chaque polluant. 
+
+En d'autres termes : 
+
+* le domaine pour la valeur moyenne de PM10 est compris entre 13.15 et 20.13
+
+* le domaine pour la valeur moyenne de PM2.5 est compris entre 7.64 et 14.44
+
+* le domaine pour la valeur moyenne de NO2 est compris entre 9.42 et 30.97
+
+* le domaine pour la valeur moyenne de O3 est compris entre 53.54 et 60.57
+
+
+
+# **IV.1.2 Les palettes de couleurs:** 
+
+Maintenant nous **assignons** à chacune de ces plages, des couleurs, pour pouvoir les utiliser comme **échelles**.
+Dans notre cas nous utilisons une palette perso en definissant les couleurs que l'on veut avec la fonction 
+colorNumeric(palette= c(le vecteur de couleurs que nous voulons),domain=le domaine d'attribution)
+
+
+```{r couleurs}
+  palPM10<-colorNumeric(palette = c('green', 'yellow', 'orange', 'red'),domain = domainPM10)
+  palPM2.5<-colorNumeric(palette = c('green', 'yellow', 'orange', 'red'),domain = domainPM2.5)
+  palO3<-colorNumeric(palette = c('green', 'yellow', 'orange', 'red'),domain = domainO3)
+  palNO2<-colorNumeric(palette = c('green', 'yellow', 'orange', 'red'),domain = domainNO2)
+                       
+```
+
+# **IV.2 Importation et lecture des contours de la région et des départements (Bonus):**
+
+Il faut savoir qu'ici nous avons **importé le fichier des contours des départements directement en format GEOJson** pour le lire avec **la fonction readOGR() de la librairie rgdal**.
+
+En temps normal, il faut savoir que les fichiers sont au format *shape*, un format binaire destiné à encoder des « formes » c’est à dire **des vecteurs du type polygone, lignes, points**.
+Pour plus d'informations, nous vous invitons à consulter ce site: "http://www.ltm.fr/fichiers-shape-geojson-et-topojson/".
+
+
+```{r import contours}
+Contour <- rgdal::readOGR(dsn ="/home/tarik/Documents/Utilisation API journée5/departements-centre-val-de-loire.geojson")
+```
+
+# **IV.3 Importation d'un support de carte:**
+```{r carte support}
+library(leaflet)
+map<-leaflet::leaflet()
+map<-addTiles(map = map) 
+map
+```
+Nous avons ici l'importation d'une map monde grâce à la fonction leaflet de la librairie leaflet, ainsi que de la fonction addTiles qui superpose un calque qui par defauts provient de openstreetmap.org.
+
+# **IV.4 setView ou se recentrer sur l'essentiel:**
+
+La fonction **setView()** permet de définir la région qui nous intéresse **en attribuant des coordonnées gps** à "lng:longitude" et à "lat:latitude" ainsi qu'**une valeur de zoom**.
+
+```{r région carte}
+map<- setView(map = map, lng = 1.4107, lat = 47.2850, zoom = 7.3) 
+map
+```
+La fonction **streetview()** permet de définir la région qui nous intèresse en attribuant des coordonnées gps "lng:longitude" et "lat:latitude" ainsi qu'une valeur de zoom.
+
+# **IV.5 Ajout des contours au support principal:**
+
+```{r Pose contours }
+map<-addPolygons(map = map ,data = Contour ,fillOpacity = 0) 
+map
+```
+Et voilà ! Les contours apparaissent.
+
+# **IV.6 Les Marqueurs en circulaires:**
+
+La base de notre carte est maintenant créée, nous procèdons maintenant à **l'ajout de nos marqueurs**.
+Le choix s'est porté sur des marqueurs circulaires dont **le rayon et la couleur dépendent de la valeur de la variable qu'il affiche**. 
+
+Les *Circle* Marqueurs sont créés avec **la fonction addCircleMarkers()**.
+Nous leur définissons les paramètres suivant:
+
+* La carte à laquelle on veut les attribuer "map = map"
+
+* Leur position sur la carte "lng=ListeMoyennePM10$attributes.x_wgs84, lat=ListeMoyennePM10$attributes.y_wgs84"
+
+* Leur rayon en fonction de la valeurs a afficher " radius=ListeMoyennePM10$moyenne"
+
+* La palette de couleur utilisée "color = palPM10(ListeMoyennePM10$moyenne)"
+
+* Toutes informations supplémentaires dans le popup "images, liens url,...)
+
+* Le groupe auquel on veut les faire appartenir. Cette option nous sera utile plus loin.
+
+
+```{r Marqueurs circulaires}
+
+map<-     addCircleMarkers(map = map, lng=ListeMoyennePM10$attributes.x_wgs84, lat=ListeMoyennePM10$attributes.y_wgs84,group = "PM10" , radius=ListeMoyennePM10$moyenne, weight = 3,color = palPM10(ListeMoyennePM10$moyenne),popup = paste("Code Station = ",ListeMoyennePM10$attributes.code_station,"<br>",
+                                                                                                                                                                                            "Moyenne",ListeMoyennePM10$attributes.nom_polluant, "= ",ListeMoyennePM10$moyenne,"<br>",
+                                                                                                                                                                                            "<img src='https://ww3.arb.ca.gov/research/aaqs/common-pollutants/pm/pm_sizes.jpg' height='40' width='50'>","<br>",
+                                                                                                                                                                                            "<a href='https://www.respire-asso.org/particules-en-suspension-pm10-pm-25/'>Voir le site </a>"))
+map
+```
+Nous avons ici ajouté les marqueurs montrant **les valeurs moyennes du poluant PM10** dont la position est définie par les coordonnées GPS des stations de mesures fournies par le fichier de données du site Lig'Air.
+
+Vous pouvez aussi constater que les couleurs utilisées sont celle de la palette que nous avons définie spécifiquement pour ce polluant à la rubrique "**IV.1.2 Les palettes de couleurs**".
+
+Nous faisons de même pour les autres polluants, et nous ajoutons des légendes.
+
+```{r Marqueurs PM2.5}
+map<-addCircleMarkers(map = map, lng=ListeMoyennePM2.5$attributes.x_wgs84, lat=ListeMoyennePM2.5$attributes.y_wgs84,group = "PM2.5" , radius=ListeMoyennePM2.5$moyenne, weight = 3,color = palPM2.5(ListeMoyennePM2.5$moyenne),popup = paste("Code Station = ",ListeMoyennePM2.5$attributes.code_station,"<br>",
+                                                                                                                                                                                                           "Moyenne",ListeMoyennePM2.5$attributes.nom_polluant, "= ",ListeMoyennePM2.5$moyenne,"<br>",
+                                                                                                                                                                                                           "<img src='https://ww3.arb.ca.gov/research/aaqs/common-pollutants/pm/pm_sizes.jpg' height='40' width='50'>","<br>",
+                                                                                                                                                                                                           "<a href='https://www.respire-asso.org/particules-en-suspension-pm10-pm-25/'>Voir le site </a>"))
+map
+```
+Nous avons ici ajouté les marqueurs montrant **les valeurs moyennes du poluant PM2.5**. 
+Vous pouvez constater qu'ils se superposent à la carte comme **une couche d'informations supplémentaires** (comme un calque photoshop).
+
+```{r Marqueurs O3}
+map<-addCircleMarkers(map = map,lng=ListeMoyenneO3$attributes.x_wgs84, lat=ListeMoyenneO3$attributes.y_wgs84,group = "O3" , radius=ListeMoyenneO3$moyenne/2, weight = 3,color = palO3(ListeMoyenneO3$moyenne),popup = paste("Code Station = ",ListeMoyenneO3$attributes.code_station,"<br>",
+                                                                                                                                                                                                                                 "Moyenne",ListeMoyenneO3$attributes.nom_polluant, "= ",ListeMoyenneO3$moyenne,"<br>",
+                                                                                                                                                                                                                 "<img src='https://previews.123rf.com/images/molekuul/molekuul1409/molekuul140900148/31177822-l-ozone-trioxygen-o3-mol%C3%A9cule-la-structure-chimique-les-atomes-sont-repr%C3%A9sent%C3%A9s-par-des-sph%C3%A8res-avec-coda.jpg' height='40' width='50'>","<br>",
+                                                                                                                                                                                                                                 "<a href='https://www.respire-asso.org/ozone-o3/'>Voir le site </a>"))
+map
+```
+
+Nous avons ici ajouté les marqueurs montrant **les valeurs moyennes du poluant O3 "Ozone"**
+
+```{r Marqueurs NO2}
+map<- addCircleMarkers(map = map,lng=ListeMoyenneNO2$attributes.x_wgs84, lat=ListeMoyenneNO2$attributes.y_wgs84,group = "NO2" , radius=ListeMoyenneNO2$moyenne/2, weight = 3,color = palNO2(ListeMoyenneNO2$moyenne),popup = paste("Code Station = ",ListeMoyenneNO2$attributes.code_station,"<br>",
+                                                                                                                                                                                                                 "Moyenne",ListeMoyenneNO2$attributes.nom_polluant, "= ",ListeMoyenneNO2$moyenne,"<br>",
+                                                                                                                                                                                                                 "<img src='https://www.alamy.com/thumbs/4/a5056a6f-b6f9-44aa-8e90-9517da5e977d/D8AWCY.jpg' height='40' width='50'>","<br>",
+                                                                                                                                                                                                                 "<a href='https://www.respire-asso.org/dioxyde-dazote-no2/'>Voir le site </a>")) 
+ map  
+```
+
+Nous avons ici ajouté les marqueurs montrant **les valeurs moyennes du poluant NO2 "Dioxyde d'Azote"**
+
+# **IV.7 Ajouter une Légende à la carte:**
+
+La Légende est créée avec **la fonction addLegend(). Nous lui définissons les paramètres suivant:
+
+* La carte à laquelle on veut l'attribuer 
+
+* La palette de couleur utilisée
+
+* La ou Les valeurs affichées
+
+* La position de la légende sur la carte
+
+* Un titre
+
+* Le groupe auquel on veut la faire appartenir. **(Cette option nous sera utile plus loin)**.
+
+```{r Légende PM10}
+map<-    addLegend(map = map, pal = palPM10,
+              values  = ListeMoyennePM10$moyenne,
+              position = "bottomright",
+              title = "Valeur moyenne du polluant PM10<br> en µg/m3",
+              group = "PM10")
+map
+```
+
+**Légende pour le polluant PM10**
+
+```{r Légende PM2.5}
+map<- addLegend(map = map,pal = palPM2.5,
+              values  = ListeMoyennePM2.5$moyenne,
+              position = "bottomright",
+              title = "Valeur moyenne du polluant PM2.5 <br> en µg/m3",
+              group = "PM2.5")
+  map
+```
+
+**Légende pour le polluant PM2.5**
+
+```{r Légende O3}
+map<-addLegend(map = map,pal = palO3,
+              values  = ListeMoyenneO3$moyenne,
+              position = "bottomleft",
+              title = "Valeur moyenne du polluant Ozone <br> en µg/m3",
+              group = "O3")
+  map
+```
+
+**Légende pour le polluant O3**
+
+```{r Légende NO2}
+map<-addLegend(map = map,pal = palNO2,
+              values  = ListeMoyenneNO2$moyenne,
+              position = "bottomleft",
+              title = "Valeur moyenne du polluant Ozone <br> en µg/m3",
+              group = "NO2")
+map
+```
+
+**Légende pour le polluant NO2**
+
+# **IV.8 Contrôle de l'affichage des différentes couches "Layers Control":**
+
+Après toutes ces superpositions, notre carte est devenue illisible. Pas de panique, nous allons maintenant contrôler les différentes couches d'informations à l'aide de la fonction **addLayersControl()**.
+
+Cette fonction permet de créer une **checkbox** qui va afficher ou cacher différents **"groupes"** d'infos.
+
+Vous l'aurez compris c'est enfin là que l'on voit l'intérêt d'avoir attribué des **groupes** aux  **légendes** et aux **marqueurs circulaires**.
+
+Pour que les cases soient décochées par défaut, il faut avoir recours à la fonction **hideGroup()**.
+
+```{r Checkbox}
+  map<-     addLayersControl(map=map, overlayGroups = c("PM10", "PM2.5","O3","NO2"),
+                     options = layersControlOptions(collapsed = FALSE))%>%
+    hideGroup(group = "O3")%>%
+    hideGroup(group = "PM10")%>%
+    hideGroup(group = "PM2.5")%>%
+    hideGroup(group = "NO2")
+map
+```
+
+# **Yeah notre carte intéractive est enfin prête!**
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
