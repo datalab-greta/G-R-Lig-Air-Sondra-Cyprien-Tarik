@@ -17,9 +17,9 @@
   
   #---------------------------------------------------------Trier le tableau-------------------------------------------------------------------------------------------------
   
-  
+
   ListeStations<-Mensuelfeatures %>%
-    group_by(attributes.nom_com,attributes.nom_polluant,attributes.code_station,attributes.x_wgs84,attributes.y_wgs84,attributes.influence,attributes.statut_valid) %>%
+    group_by(attributes.nom_com,attributes.nom_polluant,attributes.nom_station,attributes.code_station,attributes.x_wgs84,attributes.y_wgs84,attributes.influence,attributes.statut_valid) %>%
     summarise(moyenne= mean(attributes.valeur))
   ListeStations<-dplyr::filter(ListeStations, attributes.statut_valid == 1,attributes.influence !="Rurale régionale")
   
@@ -52,7 +52,7 @@
   Moyenne2 <- LSNO2$moyenne
   Influence2 <- LSNO2$attributes.influence
   
-  ggplot(data = LSNO2, aes(x=Commune2, y=Moyenne2, fill = Polluant.NO2)) + geom_col  (position = "dodge")+
+  ggplot(data = LSNO2, aes(x=Station2, y=Moyenne2, fill = Polluant.NO2)) + geom_col  (position = "dodge")+
     labs(title="Moyenne des relevés mensuels de NO2 (Dioxyde d'azote) μg/m³", y="Valeur μg/m³", x="Commune", 
          caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
          subtitle="    Valeurs limites en moyenne annuelle : 40 µg/m³ 
@@ -84,7 +84,7 @@
   Moyenne3 <- LSO3$moyenne
   Influence3 <- LSO3$attributes.influence
   
-  ggplot(data = LSO3, aes(x=Commune3, y=Moyenne3, fill = Polluant.O3)) + geom_col  (position = "dodge")+
+  ggplot(data = LSO3, aes(x=Station3, y=Moyenne3, fill = Polluant.O3)) + geom_col  (position = "dodge")+
     labs(title="Moyenne des relevés mensuels de O3 (Ozone) μg/m³", y="Valeur μg/m³", x="Commune", 
          caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
          subtitle="    Objectifs de qualité ; Seuil de protection de la santé En moyenne sur 8 heures :  120 µg/m³ 
@@ -117,7 +117,7 @@
   Moyenne10 <- LSPM10$moyenne
   Influence10 <- LSPM10$attributes.influence
   
-  ggplot(data = LSPM10, aes(x=Commune10, y=Moyenne10, fill = Polluant.PM10)) + geom_col  (position = "dodge")+
+  ggplot(data = LSPM10, aes(x=Station10, y=Moyenne10, fill = Polluant.PM10)) + geom_col  (position = "dodge")+
     labs(title="Moyenne des relevés mensuels de PM10 \n(Particules fines de diamètre ≤ 10 μm) μg/m³", y="Valeur  μg/m³", x="Commune", 
          caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
          subtitle="    Valeurs limites en moyenne annuelle : 40 µg/m³ 
@@ -148,7 +148,7 @@
   Moyenne25 <- LSPM25$moyenne
   Influence25 <- LSPM25$attributes.influence
   
-  ggplot(data = LSPM25, aes(x=Commune25, y=Moyenne25, fill = Polluant.PM2.5)) + geom_col  (position = "dodge")+
+  ggplot(data = LSPM25, aes(x=Station25, y=Moyenne25, fill = Polluant.PM2.5)) + geom_col  (position = "dodge")+
     labs(title="Moyenne des relevés mensuels de PM2.5 \n(Particules fines de diamètre ≤ 2.5 μm) μg/m³", y="Valeur μg/m³", x="Commune", 
          caption="Source: Lig'Air - Concentrations moyennes mensuelles de polluants dans l'air ambiant en région Centre-Val de Loire", 
          subtitle="    Valeurs limites en moyenne annuelle : 25 µg/m³ (20 µg/m³ en 2020 à confirmer)  
